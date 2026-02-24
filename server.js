@@ -74,6 +74,19 @@ io.on("connection",(socket)=>{
     io.emit("players",{list:Object.values(players),host:players[hostId]?.name});
     if(hostId) io.to(hostId).emit("isHost",true);
   });
+socket.on("reset",()=>{
+  if(socket.id!==hostId) return;
+
+  revealed={};
+
+  Object.values(players).forEach(p=>{
+    p.cards=[];
+    p.score=0;
+  });
+
+  io.emit("resetGame");
+  io.emit("log","🔄 Host bắt đầu ván mới");
+});
 
 });
 

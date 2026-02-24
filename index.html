@@ -12,7 +12,15 @@ body{
   background:linear-gradient(135deg,#0b5,#063);
   color:#fff;
 }
-
+.deal-card{
+  position:fixed;
+  width:80px;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  transition:all 0.5s ease;
+  z-index:999;
+}
 .card-wrap{
   display:flex;
   justify-content:center;
@@ -83,6 +91,9 @@ button{
 <div id="players"></div>
 
 <button id="dealBtn" onclick="deal()" style="display:none">Chia bài (Host)</button>
+<button id="resetBtn" onclick="resetGame()" style="display:none">
+  Ván mới
+</button>
 
 <h3>Bài của bạn</h3>
 <div class="card-wrap" id="cards"></div>
@@ -107,7 +118,45 @@ const ranks=["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
 function join(){
   socket.emit("join",document.getElementById("name").value);
 }
+async function animateDeal(){
+  let container=document.getElementById("cards");
+  let targets=[...container.children];
 
+  if(targets.length===0) return;
+
+  for(let i=0;i<targets.length;i++){
+    await dealOne(targets[i],i);
+    await delay(220);
+  }
+}
+
+function delay(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+function dealOne(target,i){
+  return new Promise(resolve=>{
+    let rect=target.getBoundingClientRect();
+
+    let card=document.createElement("img");
+    card.src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/54/Card_back_05.svg/200px-Card_back_05.svg.png";
+    card.className="deal-card";
+
+    document.body.appendChild(card);
+
+    // offset nhẹ cho giống dealer chia
+    let angle=(i-1)*8;
+
+    setTimeout(()=>{
+      card.style.left=rect.left+"px";
+      card.style.top=rect.top+"px";
+      card.style.transform=`translate(0,0) rotate(${angle}deg)`;
+    },40);
+
+    setTimeout(()=>{
+      card.remove();
+      resolve();
+    },500);
+  });
+}
 function deal(){ socket.emit("deal"); }
 
 function reveal(){
@@ -120,21 +169,27 @@ socket.on("players",(list)=>{
     "Người chơi: "+list.map(p=>p.name).join(", ");
 });
 
-socket.on("yourCards",(cards)=>{
+socket.on("yourCards",async (cards)=>{
   myCards=cards;
-  renderCards(false);
+
+  renderCards(false); // tạo khung trước
+  await animateDeal();
 });
 
 function renderCards(show){
   let html="";
   myCards.forEach((c,i)=>{
     let rank=ranks[(c-1)%13];
-    let suit=suits[Math.floor(Math.random()*4)];
+    let suit=["S","H","D","C"][i%4];
+    let img=`https://deckofcardsapi.com/static/img/${rank}${suit}.png`;
+
     html+=`
       <div class="card ${show?"flip":""}">
         <div class="inner">
           <div class="front"></div>
-          <div class="back">${rank}${suit}</div>
+          <div class="back">
+            <img src="${img}" width="80">
+          </div>
         </div>
       </div>
     `;
@@ -149,7 +204,12 @@ socket.on("players",(data)=>{
 
 socket.on("isHost",(v)=>{
   document.getElementById("dealBtn").style.display=v?"inline-block":"none";
+  document.getElementById("resetBtn").style.display=v?"inline-block":"none";
 });
+
+function resetGame(){
+  socket.emit("reset");
+}
 socket.on("showAll",(players)=>{
   let html="<h3>Kết quả</h3>";
   Object.values(players).forEach(p=>{
@@ -176,6 +236,10 @@ socket.on("scoreboard",(list)=>{
 socket.on("winner",(w)=>{
   document.getElementById("result").innerHTML+=
     `<h2>🏆 ${w.winner} thắng (${w.max==0?"Bù":w.max})</h2>`;
+});
+socket.on("resetGame",()=>{
+  document.getElementById("cards").innerHTML="";
+  document.getElementById("result").innerHTML="";
 });
 </script>
 
