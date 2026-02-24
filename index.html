@@ -82,7 +82,7 @@ button{
 
 <div id="players"></div>
 
-<button onclick="deal()">Chia bài (chủ bàn)</button>
+<button id="dealBtn" onclick="deal()" style="display:none">Chia bài (Host)</button>
 
 <h3>Bài của bạn</h3>
 <div class="card-wrap" id="cards"></div>
@@ -90,6 +90,12 @@ button{
 <button onclick="reveal()">Lật bài</button>
 
 <div id="result"></div>
+
+<h3>📜 Nhật ký bàn</h3>
+<div id="logBox" style="height:120px;overflow:auto;background:#0003;padding:10px"></div>
+
+<h3>🏅 Bảng điểm</h3>
+<div id="scoreBox"></div>
 
 <script>
 const socket=io();
@@ -135,13 +141,36 @@ function renderCards(show){
   });
   document.getElementById("cards").innerHTML=html;
 }
+socket.on("players",(data)=>{
+  document.getElementById("players").innerHTML=
+    "Host: "+(data.host||"")+
+    "<br>Người chơi: "+data.list.map(p=>p.name).join(", ");
+});
 
+socket.on("isHost",(v)=>{
+  document.getElementById("dealBtn").style.display=v?"inline-block":"none";
+});
 socket.on("showAll",(players)=>{
   let html="<h3>Kết quả</h3>";
   Object.values(players).forEach(p=>{
     html+=`<p>${p.name}: ${p.cards.join("-")} → ${p.score==0?"Bù":p.score}</p>`;
   });
   document.getElementById("result").innerHTML=html;
+});
+socket.on("log",(msg)=>{
+  let box=document.getElementById("logBox");
+  box.innerHTML+="<div>"+msg+"</div>";
+  box.scrollTop=box.scrollHeight;
+});
+
+socket.on("scoreboard",(list)=>{
+  let html="<table border='1' style='margin:auto;background:#fff;color:#000'>";
+  html+="<tr><th>Tên</th><th>Điểm thắng</th></tr>";
+  list.forEach(p=>{
+    html+=`<tr><td>${p.name}</td><td>${p.total}</td></tr>`;
+  });
+  html+="</table>";
+  document.getElementById("scoreBox").innerHTML=html;
 });
 
 socket.on("winner",(w)=>{
