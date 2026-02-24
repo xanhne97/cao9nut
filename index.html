@@ -161,6 +161,30 @@ function deal(){ socket.emit("deal"); }
 
 function reveal(){
   document.querySelectorAll(".card").forEach(c=>c.classList.add("flip"));
+
+  if(isSap(myCards)){
+    let v=sapValue(myCards);
+    document.getElementById("result").innerHTML=
+      `<h2>💥 SÁP ${v==1?"A":ranks[v-1]} THẮNG TRẮNG 💥</h2>`;
+
+    document.querySelectorAll(".card").forEach(c=>{
+      c.style.boxShadow="0 0 20px gold";
+    });
+
+  }else if(isThreeFace(myCards)){
+    document.getElementById("result").innerHTML=
+      `<h2>🔥 3 TÂY THẮNG TRẮNG 🔥</h2>`;
+
+    document.querySelectorAll(".card").forEach(c=>{
+      c.style.boxShadow="0 0 20px orange";
+    });
+
+  }else{
+    let score=calcScore(myCards);
+    document.getElementById("result").innerHTML=
+      `<h2>Điểm của bạn: ${score==0?"Bù":score}</h2>`;
+  }
+
   socket.emit("reveal");
 }
 
@@ -178,9 +202,17 @@ socket.on("yourCards",async (cards)=>{
 
 function renderCards(show){
   let html="";
-  myCards.forEach((c,i)=>{
-    let rank=ranks[(c-1)%13];
-    let suit=["S","H","D","C"][i%4];
+
+  myCards.forEach((c)=>{
+    let rankIndex=(c-1)%13;
+    let suitIndex=Math.floor((c-1)/13);
+
+    let rankMap=["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
+    let suitMap=["S","H","D","C"];
+
+    let rank=rankMap[rankIndex];
+    let suit=suitMap[suitIndex];
+
     let img=`https://deckofcardsapi.com/static/img/${rank}${suit}.png`;
 
     html+=`
@@ -194,6 +226,7 @@ function renderCards(show){
       </div>
     `;
   });
+
   document.getElementById("cards").innerHTML=html;
 }
 socket.on("players",(data)=>{
@@ -241,6 +274,34 @@ socket.on("resetGame",()=>{
   document.getElementById("cards").innerHTML="";
   document.getElementById("result").innerHTML="";
 });
+function calcScore(cards){
+  let sum=0;
+
+  cards.forEach(c=>{
+    let rank=(c-1)%13 + 1; // 1=A, 11=J,12=Q,13=K
+
+    if(rank==1 || rank>=11){
+      sum+=10; // A J Q K = 10
+    }else{
+      sum+=rank;
+    }
+  });
+
+  return sum%10;
+}
+function isThreeFace(cards){
+  return cards.every(c=>{
+    let rank=(c-1)%13 + 1;
+    return rank>=11; // J Q K
+  });
+}
+function isSap(cards){
+  let ranks=cards.map(c=>(c-1)%13);
+  return ranks[0]==ranks[1] && ranks[1]==ranks[2];
+}
+function sapValue(cards){
+  return (cards[0]-1)%13 + 1; // 1=A ... 13=K
+}
 </script>
 
 </body>
