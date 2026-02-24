@@ -1,51 +1,143 @@
 <!DOCTYPE html>
-<html>
+<html lang="vi">
 <head>
 <meta charset="UTF-8">
-<title>Bài Cào LAN</title>
+<title>Bài Cào Online</title>
 <script src="/socket.io/socket.io.js"></script>
-</head>
-<body style="font-family:Arial;text-align:center">
 
-<h2>🃏 Bài Cào LAN</h2>
+<style>
+body{
+  font-family:Arial;
+  text-align:center;
+  background:linear-gradient(135deg,#0b5,#063);
+  color:#fff;
+}
+
+.card-wrap{
+  display:flex;
+  justify-content:center;
+  gap:15px;
+  margin:20px;
+}
+
+.card{
+  width:80px;
+  height:120px;
+  perspective:600px;
+}
+
+.inner{
+  width:100%;
+  height:100%;
+  position:relative;
+  transform-style:preserve-3d;
+  transition:0.6s;
+}
+
+.flip .inner{
+  transform:rotateY(180deg);
+}
+
+.front,.back{
+  position:absolute;
+  width:100%;
+  height:100%;
+  border-radius:10px;
+  backface-visibility:hidden;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:22px;
+  font-weight:bold;
+}
+
+.back{
+  background:#fff;
+  color:#000;
+  border:2px solid #333;
+  transform:rotateY(180deg);
+}
+
+.front{
+  background:url('https://upload.wikimedia.org/wikipedia/commons/thumb/5/54/Card_back_05.svg/200px-Card_back_05.svg.png');
+  background-size:cover;
+}
+
+button{
+  padding:10px 20px;
+  font-size:16px;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+}
+</style>
+</head>
+
+<body>
+
+<h2>🃏 Bài Cào Online</h2>
 
 <input id="name" placeholder="Tên bạn">
 <button onclick="join()">Vào bàn</button>
 
 <div id="players"></div>
 
-<button onclick="deal()">Chia bài (chủ bàn bấm)</button>
+<button onclick="deal()">Chia bài (chủ bàn)</button>
 
-<h3>Bài của bạn:</h3>
-<div id="cards">Chưa có</div>
+<h3>Bài của bạn</h3>
+<div class="card-wrap" id="cards"></div>
+
 <button onclick="reveal()">Lật bài</button>
 
 <div id="result"></div>
 
 <script>
 const socket=io();
+let myCards=[];
+
+const suits=["♠","♥","♦","♣"];
+const ranks=["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
 
 function join(){
-  let name=document.getElementById("name").value;
-  socket.emit("join",name);
+  socket.emit("join",document.getElementById("name").value);
 }
 
 function deal(){ socket.emit("deal"); }
 
-function reveal(){ socket.emit("reveal"); }
+function reveal(){
+  document.querySelectorAll(".card").forEach(c=>c.classList.add("flip"));
+  socket.emit("reveal");
+}
 
 socket.on("players",(list)=>{
   document.getElementById("players").innerHTML=
-    "<b>Người chơi:</b> "+list.map(p=>p.name).join(", ");
+    "Người chơi: "+list.map(p=>p.name).join(", ");
 });
 
-socket.on("yourCards",(c)=>{
-  document.getElementById("cards").innerHTML="🂠 🂠 🂠 (đã nhận bài)";
-  window.myCards=c;
+socket.on("yourCards",(cards)=>{
+  myCards=cards;
+  renderCards(false);
 });
+
+function renderCards(show){
+  let html="";
+  myCards.forEach((c,i)=>{
+    let rank=ranks[(c-1)%13];
+    let suit=suits[Math.floor(Math.random()*4)];
+    html+=`
+      <div class="card ${show?"flip":""}">
+        <div class="inner">
+          <div class="front"></div>
+          <div class="back">${rank}${suit}</div>
+        </div>
+      </div>
+    `;
+  });
+  document.getElementById("cards").innerHTML=html;
+}
 
 socket.on("showAll",(players)=>{
-  let html="<h3>Kết quả:</h3>";
+  let html="<h3>Kết quả</h3>";
   Object.values(players).forEach(p=>{
     html+=`<p>${p.name}: ${p.cards.join("-")} → ${p.score==0?"Bù":p.score}</p>`;
   });
@@ -54,7 +146,7 @@ socket.on("showAll",(players)=>{
 
 socket.on("winner",(w)=>{
   document.getElementById("result").innerHTML+=
-    `<h2>🏆 Thắng: ${w.winner} (${w.max==0?"Bù":w.max})</h2>`;
+    `<h2>🏆 ${w.winner} thắng (${w.max==0?"Bù":w.max})</h2>`;
 });
 </script>
 
